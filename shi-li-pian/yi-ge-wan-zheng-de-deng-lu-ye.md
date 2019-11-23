@@ -6,6 +6,13 @@ description: 如果路上有坑，就要毫不犹豫的跳下去
 
 登陆页是一个软件的门面。一个完整的登陆页包含账号密码登陆、验证码登陆、注册及忘记密码四个功能，下面从框架开始一步步完成。
 
+**踩坑记录：**
+
+1. 背景图由于键盘弹起导致图片变形
+2. 输入框由于键盘弹起上移，虽然避免了键盘遮挡，但是效果不好
+
+如果你只想看代码，请到页面最下方，有完整代码
+
 ## 搭建环境
 
 ### 1. 封装网络请求库
@@ -61,7 +68,197 @@ class _LoginPageState extends State<LoginPage> {
 
 这里有个坑需要注意一下，一般情况下我们都会用`Scaffold` 来包装整个页面，因为这个组件提供了一系列非常方便的属性来配置整个页面，但如果我们想要一个背景图，就必须先写一个Container，因为如果使用`Scaffold` ，就会在键盘弹出的时候导致页面重绘，背景图会受到挤压而变形。
 
+#### 编写页面主体
 
+这时候就可以使用`Scaffold`模块来写页面了。
+
+```dart
+@override
+  Widget build(BuildContext context) {
+    return new Container(
+      decoration: BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('static/images/login_back.jpeg'),
+          fit: BoxFit.cover,
+        ),
+      ),
+      child: Scaffold(
+        resizeToAvoidBottomPadding: false, // 这里需要注意一下
+        backgroundColor: Color.fromARGB(150, 255, 255, 255),
+        body: Container(
+          padding: EdgeInsets.all(40),
+          child: getLoginComp(),
+        ),
+      ),
+    );
+  }
+```
+
+这里也有一个坑，`Scaffold` 在键盘弹出的时候，会由于底部的挤压而重绘页面，我们已经避免了背景图的变形，但是 `Scaffold` 模块内部的组件会在键盘弹出的时候整体向上偏移，这个特性可以解决输入框被键盘遮挡的问题，但是有些人可能不需要这一特性，可以将`resizeToAvoidBottomPadding`  属性设置为false。
+
+#### 编写用户名及密码输入框
+
+```dart
+ // 用户名输入框
+ TextField(
+    controller: _usernameController,
+    decoration: InputDecoration(
+      // labelText: "用户名",
+      hintText: "手机号",
+      prefixIcon: Icon(Icons.person), // 前置
+      contentPadding: EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 10.0),
+      border: // 椭圆形输入外框
+          OutlineInputBorder(borderRadius: BorderRadius.circular(32.0)),
+    ),
+    keyboardType: TextInputType.number, // 弹起的键盘类型
+    inputFormatters: [ // 输入校验，这里只允许输入数字
+      WhitelistingTextInputFormatter(RegExp("[0-9]")),
+    ]),
+  
+  /// 密码输入框
+  TextField(
+      controller: _passwordController,
+      decoration: InputDecoration(
+        // labelText: "密码",
+        hintText: "您的登录密码",
+        prefixIcon: Icon(Icons.lock),
+        contentPadding: EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 10.0),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(32.0)),
+      ),
+      obscureText: true,
+    );
+```
+
+#### 验证码输入框
+
+因为我想把验证码按钮放到输入框里，所以使用stack组件进行包裹
+
+```dart
+Stack(
+      children: <Widget>[
+        TextField(
+          // autofocus: true,
+          keyboardType: TextInputType.number,
+          controller: _verCodeController,
+          decoration: InputDecoration(
+            prefixIcon: Icon(Icons.lock),
+            contentPadding: EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 10.0),
+            border:
+                OutlineInputBorder(borderRadius: BorderRadius.circular(32.0)),
+          ),
+        ),
+        Positioned(
+          right: 5,
+          child: FlatButton(
+            disabledColor: Colors.grey[400],
+            color: Colors.blue,
+            // highlightColor: Colors.transparent,
+            colorBrightness: Brightness.dark,
+            // splashColor: Colors.grey,
+            child: Text(
+              vercodeDelay == 0 ? "获取验证码" : vercodeDelay.toString() + 's',
+              style: TextStyle(fontSize: 12),
+            ),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20.0)),
+            onPressed: vercodeDelay == 0
+                ? () {
+                    onGetVerification();
+                  }
+                : null,
+          ),
+        )
+      ],
+    );
+```
+
+完整的登陆模块页面如下：
+
+```dart
+/// 登陆模块
+  getLoginComp() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        Text(
+          'Welcome',
+          style: TextStyle(
+            fontSize: 32,
+          ),
+        ),
+        SizedBox(
+          height: 32,
+        ),
+        TextField(
+            // autofocus: true,
+            controller: _usernameController,
+            decoration: InputDecoration(
+              // labelText: "用户名",
+              hintText: "手机号",
+              prefixIcon: Icon(Icons.person),
+              contentPadding: EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 10.0),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(32.0)),
+            ),
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              WhitelistingTextInputFormatter(RegExp("[0-9]")),
+            ]),
+        SizedBox(
+          height: 12,
+        ),
+        loginMode == 'login' ? getPasswordComp() : getVerificationComp(),
+        SizedBox(
+          height: 32,
+        ),
+        SizedBox(
+          width: double.infinity,
+          height: 40,
+          child: FlatButton(
+            color: Colors.blue,
+            // highlightColor: Colors.transparent,
+            colorBrightness: Brightness.dark,
+            // splashColor: Colors.grey,
+            child: Text(
+              "登陆",
+              style: TextStyle(fontSize: 20),
+            ),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20.0)),
+            onPressed: () {
+              onLogin();
+            },
+          ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: <Widget>[
+            FlatButton(
+              color: Colors.transparent,
+              child: Text(
+                loginMode == 'login' ? "验证码登陆" : "账号密码登陆",
+                style: TextStyle(fontSize: 16, color: Colors.blue),
+              ),
+              onPressed: () {
+                onChangeLoginMode();
+              },
+            ),
+            FlatButton(
+              color: Colors.transparent,
+              child: Text(
+                "忘记密码",
+                style: TextStyle(fontSize: 16, color: Colors.blue),
+              ),
+              onPressed: () {},
+            ),
+          ],
+        )
+      ],
+    );
+  }
+```
+
+后续补充了账号登陆和验证码登陆的切换模式，完整代码如下：
 
 ```dart
 class LoginPage extends StatefulWidget {
@@ -85,8 +282,6 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-    _usernameController.text = '18515597305';
-    _passwordController.text = '123456789';
   }
 
   @override
